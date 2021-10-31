@@ -7,8 +7,6 @@
     [goog.events :as events]
     [goog.history.EventType :as HistoryEventType]
     [markdown.core :refer [md->html]]
-    [minesweeper.ajax :as ajax]
-    [minesweeper.events]
     [reitit.core :as reitit]
     [reitit.frontend.easy :as rfe]
     [clojure.string :as string])
@@ -29,52 +27,34 @@
                  {:data-target :nav-menu
                   :on-click #(swap! expanded? not)
                   :class (when @expanded? :is-active)}
-                 [:span][:span][:span]]]
-               [:div#nav-menu.navbar-menu
-                {:class (when @expanded? :is-active)}
-                [:div.navbar-start
-                 [nav-link "#/" "Home" :home]
-                 [nav-link "#/about" "About" :about]]]]))
+                 [:span][:span][:span]]]]))
 
-(defn about-page []
-  [:section.section>div.container>div.content
-   [:img {:src "/img/warning_clojure.png"}]])
+(defn minesweeper []
+  [:div {:dangerouslySetInnerHTML {:__html "&#x1f4a3;"}}])
+
+; #01f4a3;
+     ;[:div {:dangerouslySetInnerHTML {:__html (md->html docs)}}])])
 
 (defn home-page []
-  [:section.section>div.container>div.content
-   (when-let [docs @(rf/subscribe [:docs])]
-     [:div {:dangerouslySetInnerHTML {:__html (md->html docs)}}])])
+  [:div
+   [navbar]
+   [minesweeper]])
 
-(defn page []
-  (if-let [page @(rf/subscribe [:common/page])]
-    [:div
-     [navbar]
-     [page]]))
+;  [:section.section>div.container>div.content
+;   (when-let [docs @(rf/subscribe [:docs])]
+;     [minesweeper])])
 
-(defn navigate! [match _]
-  (rf/dispatch [:common/navigate match]))
-
-(def router
-  (reitit/router
-    [["/" {:name        :home
-           :view        #'home-page
-           :controllers [{:start (fn [_] (rf/dispatch [:page/init-home]))}]}]
-     ["/about" {:name :about
-                :view #'about-page}]]))
-
-(defn start-router! []
-  (rfe/start!
-    router
-    navigate!
-    {}))
+;(defn page []
+;  (if-let [page @(rf/subscribe [:common/page])]
+;    [:div
+;     [navbar]
+;     [page]]))
 
 ;; -------------------------
 ;; Initialize app
 (defn ^:dev/after-load mount-components []
   (rf/clear-subscription-cache!)
-  (rdom/render [#'page] (.getElementById js/document "app")))
+  (rdom/render [#'home-page] (.getElementById js/document "app")))
 
 (defn init! []
-  (start-router!)
-  (ajax/load-interceptors!)
   (mount-components))
