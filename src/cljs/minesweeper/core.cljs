@@ -121,6 +121,7 @@
         "")]
      [:div.board
       (for [r (range rows)]
+        ^{:key {:row r}}
         [:div.board-row
          {:style {:clear :both}}
          (for [c (range cols)]
