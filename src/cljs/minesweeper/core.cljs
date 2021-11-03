@@ -78,7 +78,7 @@
 
 (defn minesweeper-cell [cell game-status]
   (let [state @(rf/subscribe [:minesweeper/cell cell])]
-    [:div.board-cell
+    [:div
      {:style {:width "20px" :height "20px" :float :left :border ["solid 1px"] :text-align :center}}
       (case state
         :flagged
@@ -109,8 +109,8 @@
   (let [game-status @(rf/subscribe [:minesweeper/game-status])
         rows @(rf/subscribe [:minesweeper/rows])
         cols @(rf/subscribe [:minesweeper/cols])]
-    [:div.minesweeper
-     [:div {:style {:height "20px"}}
+    [:section.section>div.container
+     [:div {:style {:height "30px"}}
       (case game-status
         :won
         "You Won!"
@@ -119,14 +119,16 @@
         "You Lost!"
 
         "")]
-     [:div.board
+     [:div
       (for [r (range rows)]
         ^{:key {:row r}}
-        [:div.board-row
-         {:style {:clear :both}}
+        [:div
          (for [c (range cols)]
            (let [cell {:row r :col c}]
-             ^{:key cell} [minesweeper-cell cell game-status]))])]]))
+             ^{:key cell} [minesweeper-cell cell game-status]))
+         [:div {:style {:clear :both}}]])]
+     [:button.button.is-primary.mt-4
+      {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]]))
 
 (defn home-page []
   [:div
