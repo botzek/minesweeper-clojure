@@ -40,6 +40,12 @@
    (-> db :minesweeper/game :rows)))
 
 (rf/reg-sub
+ :minesweeper/game-status
+ (fn [db _]
+   (-> db :minesweeper/game :status)))
+
+
+(rf/reg-sub
  :minesweeper/cols
  (fn [db _]
    (-> db :minesweeper/game :cols)))
@@ -70,7 +76,7 @@
                   :class (when @expanded? :is-active)}
                  [:span][:span][:span]]]]))
 
-(defn minesweeper-cell [cell]
+(defn minesweeper-cell [cell game-status]
   (let [state @(rf/subscribe [:minesweeper/cell cell])]
     [:div.board-cell
      {:style {:width "20px" :height "20px" :float :left :border ["solid 1px"] :text-align :center}}
@@ -78,34 +84,48 @@
         :flagged
         [:button {:style {:width "100%" :height "100%" :padding "0px" :margin "0px"}
                   :on-context-menu #(do
-                                      (rf/dispatch [:minesweeper/toggle-flag cell])
+                                      (when (= :playing game-status)
+                                        (rf/dispatch [:minesweeper/toggle-flag cell]))
                                       (.preventDefault %))
                   :dangerouslySetInnerHTML {:__html "&#x1f6a9;"}}]
 
         :hidden
         [:button {:style {:width "100%" :height "100%" :padding "0px" :margin "0px"}
-                  :on-click #(rf/dispatch [:minesweeper/reveal cell])
+                  :on-click #(when (= :playing game-status)
+                               (rf/dispatch [:minesweeper/reveal cell]))
                   :on-context-menu #(do
-                                      (rf/dispatch [:minesweeper/toggle-flag cell])
+                                      (when (= :playing game-status)
+                                        (rf/dispatch [:minesweeper/toggle-flag cell]))
                                       (.preventDefault %))}]
 
-        :mine
-        [:span {:dangerouslySetInnerHTML {:__html "&#x1f4a3;"}}]
+        :exploded
+        [:span {:dangerouslySetInnerHTML {:__html "&#x1f4a5;"}}]
 
         0
         ""
         (str state))]))
 
 (defn minesweeper []
-  [:div.board
-   (let [rows @(rf/subscribe [:minesweeper/rows])
-         cols @(rf/subscribe [:minesweeper/cols])]
-     (for [r (range rows)]
-       [:div.board-row
-        {:style {:clear :both}}
-        (for [c (range cols)]
-          (let [cell {:row r :col c}]
-            ^{:key cell} [minesweeper-cell cell]))]))])
+  (let [game-status @(rf/subscribe [:minesweeper/game-status])
+        rows @(rf/subscribe [:minesweeper/rows])
+        cols @(rf/subscribe [:minesweeper/cols])]
+    [:div.minesweeper
+     [:div {:style {:height "20px"}}
+      (case game-status
+        :won
+        "You Won!"
+
+        :lost
+        "You Lost!"
+
+        "")]
+     [:div.board
+      (for [r (range rows)]
+        [:div.board-row
+         {:style {:clear :both}}
+         (for [c (range cols)]
+           (let [cell {:row r :col c}]
+             ^{:key cell} [minesweeper-cell cell game-status]))])]]))
 
 (defn home-page []
   [:div

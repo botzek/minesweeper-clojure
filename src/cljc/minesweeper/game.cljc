@@ -15,17 +15,31 @@
        (filter #(cell-adjacent? cell %1))
        count))
 
-(defn reveal [{:keys [mines] :as game} cell]
-  {:pre [(= :hidden (get-in game [:board cell]))]}
-  (let [state (if (contains? mines cell)
-                :mine
-                (adjacent-mine-count cell mines))
-        new-game (assoc-in game [:board cell] state)]
-    (case state
-      :mine
-      new-game
+(defn- update-game-status [{:keys [board mines] :as game}]
+  (cond
+    ; lost
+    (some #(= :exploded %) (vals board))
+    (assoc game :status :lost)
 
-      0
+    ; won
+    (= (count mines)
+       (->> board vals (filter (fn [v] (#{:hidden :flagged} v))) count))
+    (assoc game :status :won)
+
+    ; still playing
+    :else
+    game))
+
+(defn reveal [{:keys [board mines status] :as game} cell]
+  {:pre [(= :hidden (get board cell))
+         (= status :playing)]}
+  (let [state (if (contains? mines cell)
+                :exploded
+                (adjacent-mine-count cell mines))
+        new-game (-> game
+                     (assoc-in [:board cell] state)
+                     (update-game-status))]
+    (if (= 0 state)
       (let [adjacent-cells (filter #(cell-adjacent? % cell)
                                    (-> new-game :board keys))
             reveal-fn (fn [fn-game fn-cell]
@@ -33,13 +47,12 @@
                           (reveal fn-game fn-cell)
                           fn-game))]
         (reduce reveal-fn new-game adjacent-cells))
-
-      ; else
       new-game)))
 
-(defn toggle-flag [game cell]
-  {:pre [(some #(= % (get-in game [:board cell])) [:hidden :flagged])]}
-  (let [state (get-in game [:board cell])]
+(defn toggle-flag [{:keys [board status] :as game} cell]
+  {:pre [(#{:hidden :flagged} (get board cell))
+         (= status :playing)]}
+  (let [state (get board cell)]
     (case state
       :flagged
       (assoc-in game [:board cell] :hidden)
@@ -63,4 +76,5 @@
     {:mines mines
      :rows rows
      :cols cols
-     :board board})))
+     :board board
+     :status :playing})))
