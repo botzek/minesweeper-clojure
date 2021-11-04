@@ -17,7 +17,13 @@
 (rf/reg-event-db
  :minesweeper/new-game
  (fn [db [_]]
-   (assoc db :minesweeper/game (game/make-game :trivial))))
+   (let [settings (:minesweeper/settings db)]
+   (assoc db :minesweeper/game (game/make-game settings)))))
+
+(rf/reg-event-db
+ :minesweeper/set-settings-pre-set
+ (fn [db [_ pre-set]]
+   (assoc db :minesweeper/settings (get game/pre-sets (keyword pre-set)))))
 
 (rf/reg-event-db
  :minesweeper/reveal
@@ -44,7 +50,6 @@
  (fn [db _]
    (-> db :minesweeper/game :status)))
 
-
 (rf/reg-sub
  :minesweeper/cols
  (fn [db _]
@@ -57,6 +62,21 @@
        :minesweeper/game
        :board
        (get cell))))
+
+(rf/reg-sub
+ :minesweeper/settings-rows
+ (fn [db [_]]
+   (-> db :minesweeper/settings :rows)))
+
+(rf/reg-sub
+ :minesweeper/settings-cols
+ (fn [db [_]]
+   (-> db :minesweeper/settings :cols)))
+
+(rf/reg-sub
+ :minesweeper/settings-mines
+ (fn [db [_]]
+   (-> db :minesweeper/settings :mines)))
 
 
 (defn nav-link [uri title page]
@@ -106,29 +126,53 @@
         (str state))]))
 
 (defn minesweeper []
-  (let [game-status @(rf/subscribe [:minesweeper/game-status])
-        rows @(rf/subscribe [:minesweeper/rows])
-        cols @(rf/subscribe [:minesweeper/cols])]
-    [:section.section>div.container
-     [:div {:style {:height "30px"}}
-      (case game-status
-        :won
-        "You Won!"
-
-        :lost
-        "You Lost!"
-
-        "")]
+  [:section.section>div.container
+   (let [game-status @(rf/subscribe [:minesweeper/game-status])
+         rows @(rf/subscribe [:minesweeper/rows])
+         cols @(rf/subscribe [:minesweeper/cols])]
      [:div
-      (for [r (range rows)]
-        ^{:key {:row r}}
-        [:div
-         (for [c (range cols)]
-           (let [cell {:row r :col c}]
-             ^{:key cell} [minesweeper-cell cell game-status]))
-         [:div {:style {:clear :both}}]])]
-     [:button.button.is-primary.mt-4
-      {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]]))
+      [:div {:style {:height "30px"}}
+       (case game-status
+         :won
+         "You Won!"
+
+         :lost
+         "You Lost!"
+
+         "")]
+      [:div
+       (for [r (range rows)]
+         ^{:key {:row r}}
+         [:div
+          (for [c (range cols)]
+            (let [cell {:row r :col c}]
+              ^{:key cell} [minesweeper-cell cell game-status]))
+          [:div {:style {:clear :both}}]])]])
+   [:button.button.is-primary.mt-4
+    {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]
+   [:table.table
+    [:thead>tr
+     [:th]
+     [:th "Rows"]
+     [:th "Columns"]
+     [:th "Mines"]]
+
+    [:tbody
+     (for [[k {:keys [name rows cols mines]}] game/pre-sets]
+       ^{:key {:pre-set k}}
+       [:tr
+        [:td
+         [:label.label
+          [:input
+           {:type :radio
+            :name :settings
+            :value k
+            :defaultChecked (= k :trivial)
+            :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
+          name]]
+        [:td rows]
+        [:td cols]
+        [:td mines]])]]])
 
 (defn home-page []
   [:div
@@ -142,5 +186,6 @@
   (rdom/render [#'home-page] (.getElementById js/document "app")))
 
 (defn init! []
+  (rf/dispatch [:minesweeper/set-settings-pre-set :trivial])
   (rf/dispatch [:minesweeper/new-game])
   (mount-components))

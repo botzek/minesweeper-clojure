@@ -60,13 +60,16 @@
       :hidden
       (assoc-in game [:board cell] :flagged))))
 
+(def pre-sets
+  (array-map
+   :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
+   :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
+   :intermediate {:name "Intermediate" :rows 16 :cols 16 :mines 40}
+   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}))
+
 (defn make-game
-  ([difficulty]
-   (case difficulty
-     :trivial (make-game 9 9 5)
-     :beginner (make-game 9 9 10)
-     :intermediate (make-game 16 16 40)
-     :expert (make-game 16 30 99)))
+  ([{:keys [rows cols mines]}]
+   (make-game rows cols mines))
   ([rows cols mine-count]
   (let [cells (for [r (range rows)
                     c (range cols)]
