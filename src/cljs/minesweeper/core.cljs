@@ -18,7 +18,8 @@
  :minesweeper/new-game
  (fn [db [_]]
    (let [settings (:minesweeper/settings db)]
-   (assoc db :minesweeper/game (game/make-game settings)))))
+     (assoc db
+            :minesweeper/game (game/make-game settings)))))
 
 (rf/reg-event-db
  :minesweeper/set-settings-pre-set
@@ -31,6 +32,11 @@
    (update db :minesweeper/game game/reveal cell)))
 
 (rf/reg-event-db
+ :minesweeper/take-step
+ (fn [db _]
+   (update db :minesweeper/game game/take-step)))
+
+(rf/reg-event-db
  :minesweeper/toggle-flag
  (fn [db [_ cell]]
    (update db :minesweeper/game game/toggle-flag cell)))
@@ -39,6 +45,13 @@
  :minesweeper/game
  (fn [db _]
    (-> db :minesweeper/game)))
+
+(rf/reg-sub
+ :minesweeper/solvable?
+ :<- [:minesweeper/game]
+ (fn [game _]
+   (and (= :playing (:status game))
+        (-> game game/next-step some?))))
 
 (rf/reg-sub
  :minesweeper/rows
@@ -126,53 +139,78 @@
         (str state))]))
 
 (defn minesweeper []
-  [:section.section>div.container
-   (let [game-status @(rf/subscribe [:minesweeper/game-status])
-         rows @(rf/subscribe [:minesweeper/rows])
-         cols @(rf/subscribe [:minesweeper/cols])]
-     [:div
-      [:div {:style {:height "30px"}}
-       (case game-status
-         :won
-         "You Won!"
+  (let [game-status @(rf/subscribe [:minesweeper/game-status])]
+    [:section.section>div.container
+     (let [rows @(rf/subscribe [:minesweeper/rows])
+           cols @(rf/subscribe [:minesweeper/cols])]
+       [:div
+        [:div {:style {:height "30px"}}
+         (case game-status
+           :won
+           "You Won!"
 
-         :lost
-         "You Lost!"
+           :lost
+           "You Lost!"
 
-         "")]
-      [:div
-       (for [r (range rows)]
-         ^{:key {:row r}}
-         [:div
-          (for [c (range cols)]
-            (let [cell {:row r :col c}]
-              ^{:key cell} [minesweeper-cell cell game-status]))
-          [:div {:style {:clear :both}}]])]])
-   [:button.button.is-primary.mt-4
-    {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]
-   [:table.table
-    [:thead>tr
-     [:th]
-     [:th "Rows"]
-     [:th "Columns"]
-     [:th "Mines"]]
+           "")]
+        [:div
+         (for [r (range rows)]
+           ^{:key {:row r}}
+           [:div
+            (for [c (range cols)]
+              (let [cell {:row r :col c}]
+                ^{:key cell} [minesweeper-cell cell game-status]))
+            [:div {:style {:clear :both}}]])]])
+     [:button.button.is-primary.m-4
+      {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]
+     [:button.button.m-4
+      {:disabled (not @(rf/subscribe [:minesweeper/solvable?]))
+       :on-click #(rf/dispatch [:minesweeper/take-step])} "Take Step"]
+     (r/with-let [interval (r/atom nil)]
+       [:button.button.m-4
+        {:disabled (not @(rf/subscribe [:minesweeper/solvable?]))
+         :on-click #(if (some? @interval)
+                      (do
+                        (.clearInterval js/window @interval)
+                        (reset! interval nil))
+                      (reset! interval
+                              (.setInterval
+                               js/window
+                               (fn []
+                                 (if (and (= :playing @(rf/subscribe [:minesweeper/game-status]))
+                                          @(rf/subscribe [:minesweeper/solvable?]))
+                                   (rf/dispatch [:minesweeper/take-step])
+                                   (do
+                                     (.clearInterval js/window @interval)
+                                     (reset! interval nil))))
+                               100)))}
 
-    [:tbody
-     (for [[k {:keys [name rows cols mines]}] game/pre-sets]
-       ^{:key {:pre-set k}}
-       [:tr
-        [:td
-         [:label.label
-          [:input
-           {:type :radio
-            :name :settings
-            :value k
-            :defaultChecked (= k :trivial)
-            :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
-          name]]
-        [:td rows]
-        [:td cols]
-        [:td mines]])]]])
+        (if (nil? @interval)
+          "Solve"
+          "Stop")])
+     [:table.table
+      [:thead>tr
+       [:th]
+       [:th "Rows"]
+       [:th "Columns"]
+       [:th "Mines"]]
+
+      [:tbody
+       (for [[k {:keys [name rows cols mines]}] game/pre-sets]
+         ^{:key {:pre-set k}}
+         [:tr
+          [:td
+           [:label.label
+            [:input
+             {:type :radio
+              :name :settings
+              :value k
+              :defaultChecked (= k :trivial)
+              :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
+            name]]
+          [:td rows]
+          [:td cols]
+          [:td mines]])]]]))
 
 (defn home-page []
   [:div

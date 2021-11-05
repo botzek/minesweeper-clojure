@@ -10,6 +10,14 @@
      (<= min-row (:row other) max-row)
      (<= min-col (:col other) max-col))))
 
+(defn- adjacent-cells [{:keys [row col] :as cell} board]
+  (for [rd (range -1 2)
+        cd (range -1 2)
+        :let [adj {:row (+ rd row) :col (+ cd col)}]
+        :when (and (or (not= rd 0) (not= cd 0))
+                   (contains? board adj))]
+    adj))
+
 (defn- adjacent-mine-count [{:keys [col, row] :as cell} mine-cells]
   (->> mine-cells
        (filter #(cell-adjacent? cell %1))
@@ -29,6 +37,37 @@
     ; still playing
     :else
     game))
+
+
+(defn- mine-count-satisfied? [cell board]
+  {:pre [(number? (get board cell))]}
+  (let [mines (get board cell)
+        adjacent-flags (->> board
+                            (adjacent-cells cell)
+                            (filter #(= :flagged (get board %)))
+                            (count))]
+    (<= mines adjacent-flags)))
+
+(defn- all-adjacent-need-flag? [cell board]
+  (let [mines (get board cell)
+        potential-flags (->> board
+                             (adjacent-cells cell)
+                             (filter (fn [cell] (#{:flagged :hidden} (get board cell))))
+                             (count))]
+    (= mines potential-flags)))
+
+(defn- next-step-for-cell [cell board]
+  (if (= :hidden (get board cell))
+    (let [adjacent-cells (adjacent-cells cell board)]
+      (cond
+        (some #(all-adjacent-need-flag? % board)
+              (filter #(number? (get board %)) adjacent-cells))
+        [:flag cell]
+
+        (some #(mine-count-satisfied? % board)
+              (filter #(number? (get board %)) adjacent-cells))
+        [:reveal cell]))
+    nil))
 
 (defn reveal [{:keys [board mines status] :as game} cell]
   {:pre [(= :hidden (get board cell))
@@ -59,6 +98,22 @@
 
       :hidden
       (assoc-in game [:board cell] :flagged))))
+
+(defn next-step [{:keys [status board] :as game}]
+  {:pre [(= :playing status)]}
+  (first (filter some? (map #(next-step-for-cell % board)
+                            (keys board)))))
+
+(defn take-step [game]
+  (let [step (next-step game)]
+    (case (first step)
+      :flag
+      (toggle-flag game (second step))
+
+      :reveal
+      (reveal game (second step))
+
+      game)))
 
 (def pre-sets
   (array-map
