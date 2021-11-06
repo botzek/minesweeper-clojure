@@ -112,10 +112,10 @@
 (defn minesweeper-cell [cell game-status]
   (let [state @(rf/subscribe [:minesweeper/cell cell])]
     [:div
-     {:style {:width "20px" :height "20px" :float :left :border ["solid 1px"] :text-align :center}}
+     {:style {:width "25px" :height "25px" :float :left :border ["solid 1px"] :text-align :center}}
       (case state
         :flagged
-        [:button {:style {:width "100%" :height "100%" :padding "0px" :margin "0px"}
+        [:div {:style {:background-color "#CCC" :cursor :pointer}
                   :on-context-menu #(do
                                       (when (= :playing game-status)
                                         (rf/dispatch [:minesweeper/toggle-flag cell]))
@@ -123,13 +123,14 @@
                   :dangerouslySetInnerHTML {:__html "&#x1f6a9;"}}]
 
         :hidden
-        [:button {:style {:width "100%" :height "100%" :padding "0px" :margin "0px"}
+        [:div {:style {:width "100%" :height "100%" :background-color "#CCC" :cursor :pointer}
                   :on-click #(when (= :playing game-status)
                                (rf/dispatch [:minesweeper/reveal cell]))
                   :on-context-menu #(do
                                       (when (= :playing game-status)
                                         (rf/dispatch [:minesweeper/toggle-flag cell]))
-                                      (.preventDefault %))}]
+                                      (.preventDefault %))
+                  :dangerouslySetInnerHTML{:__html "&nbsp;"}}]
 
         :exploded
         [:span {:dangerouslySetInnerHTML {:__html "&#x1f4a5;"}}]
@@ -153,7 +154,7 @@
            "You Lost!"
 
            "")]
-        [:div
+        [:div {:style {:border ["solid 1px"] :display :inline-block}}
          (for [r (range rows)]
            ^{:key {:row r}}
            [:div
