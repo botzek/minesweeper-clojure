@@ -164,31 +164,34 @@
             [:div {:style {:clear :both}}]])]])
      [:button.button.is-primary.m-4
       {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]
-     [:button.button.m-4
-      {:disabled (not @(rf/subscribe [:minesweeper/solvable?]))
-       :on-click #(rf/dispatch [:minesweeper/take-step])} "Take Step"]
      (r/with-let [interval (r/atom nil)]
-       [:button.button.m-4
-        {:disabled (not @(rf/subscribe [:minesweeper/solvable?]))
-         :on-click #(if (some? @interval)
-                      (do
-                        (.clearInterval js/window @interval)
-                        (reset! interval nil))
-                      (reset! interval
-                              (.setInterval
-                               js/window
-                               (fn []
-                                 (if (and (= :playing @(rf/subscribe [:minesweeper/game-status]))
-                                          @(rf/subscribe [:minesweeper/solvable?]))
-                                   (rf/dispatch [:minesweeper/take-step])
-                                   (do
-                                     (.clearInterval js/window @interval)
-                                     (reset! interval nil))))
-                               100)))}
+       [:<>
+        [:button.button.m-4
+         {:disabled (not @(rf/subscribe [:minesweeper/solvable?]))
+          :on-click #(if (some? @interval)
+                       (do
+                         (.clearInterval js/window @interval)
+                         (reset! interval nil))
+                       (reset! interval
+                               (.setInterval
+                                js/window
+                                (fn []
+                                  (if (and (= :playing @(rf/subscribe [:minesweeper/game-status]))
+                                           @(rf/subscribe [:minesweeper/solvable?]))
+                                    (rf/dispatch [:minesweeper/take-step])
+                                    (do
+                                      (.clearInterval js/window @interval)
+                                      (reset! interval nil))))
+                                100)))}
 
-        (if (nil? @interval)
-          "Solve"
-          "Stop")])
+         (if (nil? @interval)
+           "Solve"
+           "Stop")]
+        [:button.button.m-4
+         {:disabled (or (not @(rf/subscribe [:minesweeper/solvable?]))
+                        (some? @interval))
+          :on-click #(rf/dispatch [:minesweeper/take-step])} "Take Step"]
+        ])
      [:table.table
       [:thead>tr
        [:th]
