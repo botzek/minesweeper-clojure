@@ -1,4 +1,6 @@
-(ns minesweeper.game)
+(ns minesweeper.game
+  (:require
+    [clojure.set :as set]))
 
 (defn- cell-adjacent? [{:keys [row col] :as cell} other]
   (let [min-row (- row 1)
@@ -23,14 +25,14 @@
        (filter #(cell-adjacent? cell %1))
        count))
 
-(defn- update-game-status [{:keys [board mines] :as game}]
+(defn- update-game-status [{:keys [board mine-count] :as game}]
   (cond
     ; lost
     (some #(= :exploded %) (vals board))
     (assoc game :status :lost)
 
     ; won
-    (= (count mines)
+    (= mine-count
        (->> board vals (filter (fn [v] (#{:hidden :flagged} v))) count))
     (assoc game :status :won)
 
@@ -69,24 +71,40 @@
         [:reveal cell]))
     nil))
 
-(defn reveal [{:keys [board mines status] :as game} cell]
+(defn- generate-mines-lose [{:keys [board mine-count] :as game} cell]
+  (let [cells (into #{} (keys board))
+        candidate-cells (disj cells cell)
+        mines (into #{cell} (take (- mine-count 1) (shuffle candidate-cells)))]
+    (assoc game :mines mines)))
+
+(defn- generate-mines [{:keys [board mine-count] :as game} cell]
+  (let [cells (into #{} (keys board))
+        free-cells (into #{cell} (adjacent-cells cell board))
+        candidate-cells (set/difference cells free-cells)
+        mines (into #{} (take mine-count (shuffle candidate-cells)))]
+    (assoc game :mines mines)))
+
+(defn reveal [{:keys [board mines status mine-generator] :as game} cell]
   {:pre [(= :hidden (get board cell))
          (= status :playing)]}
-  (let [state (if (contains? mines cell)
-                :exploded
-                (adjacent-mine-count cell mines))
-        new-game (-> game
-                     (assoc-in [:board cell] state)
-                     (update-game-status))]
-    (if (= 0 state)
-      (let [adjacent-cells (filter #(cell-adjacent? % cell)
-                                   (-> new-game :board keys))
-            reveal-fn (fn [fn-game fn-cell]
-                        (if (= :hidden (-> fn-game :board (get fn-cell)))
-                          (reveal fn-game fn-cell)
-                          fn-game))]
-        (reduce reveal-fn new-game adjacent-cells))
-      new-game)))
+  (if (nil? mines)
+    (let [new-game (mine-generator game cell)]
+      (recur new-game cell))
+    (let [state (if (contains? mines cell)
+                  :exploded
+                  (adjacent-mine-count cell mines))
+          new-game (-> game
+                       (assoc-in [:board cell] state)
+                       (update-game-status))]
+      (if (= 0 state)
+        (let [adjacent-cells (filter #(cell-adjacent? % cell)
+                                     (-> new-game :board keys))
+              reveal-fn (fn [fn-game fn-cell]
+                          (if (= :hidden (-> fn-game :board (get fn-cell)))
+                            (reveal fn-game fn-cell)
+                            fn-game))]
+          (reduce reveal-fn new-game adjacent-cells))
+        new-game))))
 
 (defn toggle-flag [{:keys [board status] :as game} cell]
   {:pre [(#{:hidden :flagged} (get board cell))
@@ -124,18 +142,20 @@
    :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
    :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
    :intermediate {:name "Intermediate" :rows 16 :cols 16 :mines 40}
-   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}))
+   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}
+   :impossible {:name "Impossible" :rows 16 :cols 30 :mines 1 :mine-generator generate-mines-lose}))
 
 (defn make-game
-  ([{:keys [rows cols mines]}]
-   (make-game rows cols mines))
-  ([rows cols mine-count]
+  ([{:keys [rows cols mines mine-generator]}]
+   (make-game rows cols mines mine-generator))
+  ([rows cols mine-count mine-generator]
   (let [cells (for [r (range rows)
                     c (range cols)]
                 {:row r :col c})
-        board (zipmap cells (repeat :hidden))
-        mines (into #{} (take mine-count (shuffle cells)))]
-    {:mines mines
+        board (zipmap cells (repeat :hidden))]
+        ;mines (into #{} (take mine-count (shuffle cells)))
+    {:mine-count mine-count
+     :mine-generator (or mine-generator generate-mines)
      :rows rows
      :cols cols
      :board board
