@@ -94,7 +94,11 @@
   (let [state (get board cell)]
     (case state
       :flagged
-      (assoc-in game [:board cell] :hidden)
+      (if (some #(= 0 (get board %)) (adjacent-cells cell board))
+        (-> game
+         (assoc-in [:board cell] :hidden)
+         (reveal cell))
+        (assoc-in game [:board cell] :hidden))
 
       :hidden
       (assoc-in game [:board cell] :flagged))))
