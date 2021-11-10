@@ -17,14 +17,21 @@
 (rf/reg-event-db
  :minesweeper/new-game
  (fn [db [_]]
-   (let [settings (:minesweeper/settings db)]
+   (let [settings (:minesweeper/settings db)
+         mine-generator (:minesweeper/mine-generator db)]
      (assoc db
-            :minesweeper/game (game/make-game settings)))))
+            :minesweeper/game (game/make-game settings mine-generator)))))
 
 (rf/reg-event-db
  :minesweeper/set-settings-pre-set
  (fn [db [_ pre-set]]
    (assoc db :minesweeper/settings (get game/pre-sets (keyword pre-set)))))
+
+(rf/reg-event-db
+ :minesweeper/set-mine-generator
+ (fn [db [_ generator]]
+   (assoc db :minesweeper/mine-generator (get-in game/mine-generators [(keyword generator) :generator]))))
+
 
 (rf/reg-event-db
  :minesweeper/reveal
@@ -162,8 +169,6 @@
               (let [cell {:row r :col c}]
                 ^{:key cell} [minesweeper-cell cell game-status]))
             [:div {:style {:clear :both}}]])]])
-     [:button.button.is-primary.m-4
-      {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]
      (r/with-let [interval (r/atom nil)]
        [:<>
         [:button.button.m-4
@@ -190,31 +195,42 @@
         [:button.button.m-4
          {:disabled (or (not @(rf/subscribe [:minesweeper/solvable?]))
                         (some? @interval))
-          :on-click #(rf/dispatch [:minesweeper/take-step])} "Take Step"]
-        ])
-     [:table.table
-      [:thead>tr
-       [:th]
-       [:th "Rows"]
-       [:th "Columns"]
-       [:th "Mines"]]
-
-      [:tbody
-       (for [[k {:keys [name rows cols mines]}] game/pre-sets]
-         ^{:key {:pre-set k}}
-         [:tr
-          [:td
-           [:label.label
-            [:input
-             {:type :radio
-              :name :settings
-              :value k
-              :defaultChecked (= k :trivial)
-              :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
-            name]]
-          [:td rows]
-          [:td cols]
-          [:td mines]])]]]))
+          :on-click #(rf/dispatch [:minesweeper/take-step])} "Take Step"]])
+     [:div
+      [:button.button.is-primary.m-4
+       {:on-click #(rf/dispatch [:minesweeper/new-game])} "New Game"]]
+     [:div
+      [:hr]
+      [:div.title.is-4 "Game Settings"]
+      [:label.label "Difficulty"
+      [:table.table
+       [:thead>tr
+        [:th]
+        [:th "Rows"]
+        [:th "Columns"]
+        [:th "Mines"]]
+       [:tbody
+        (for [[k {:keys [name rows cols mines]}] game/pre-sets]
+          ^{:key {:pre-set k}}
+          [:tr
+           [:td
+            [:label.label
+             [:input
+              {:type :radio
+               :name :settings
+               :value k
+               :defaultChecked (= k :trivial)
+               :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
+             name]]
+           [:td rows]
+           [:td cols]
+           [:td mines]])]]]
+      [:label.label.pt-4 "Mine Generator: "
+       [:select
+        {:on-change #(rf/dispatch [:minesweeper/set-mine-generator (.. % -target -value)])}
+        (for [[k {:keys [name]}] game/mine-generators]
+          ^{:key {:mine-generator k}}
+          [:option {:value k} name])]]]]))
 
 (defn home-page []
   [:div
@@ -229,5 +245,6 @@
 
 (defn init! []
   (rf/dispatch [:minesweeper/set-settings-pre-set :trivial])
+  (rf/dispatch [:minesweeper/set-mine-generator :standard])
   (rf/dispatch [:minesweeper/new-game])
   (mount-components))

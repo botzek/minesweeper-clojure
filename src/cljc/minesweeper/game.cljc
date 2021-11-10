@@ -124,7 +124,6 @@
 
       game)))
 
-
 (def mine-generator-standard
   (fn [{:keys [board mine-count] :as game} cell]
     (let [cells (into #{} (keys board))
@@ -145,20 +144,24 @@
    :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
    :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
    :intermediate {:name "Intermediate" :rows 16 :cols 16 :mines 40}
-   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}
-   :impossible {:name "Impossible" :rows 16 :cols 30 :mines 1 :mine-generator mine-generator-impossible}))
+   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}))
+
+(def mine-generators
+  (array-map
+   :standard {:name "Standard" :generator mine-generator-standard}
+   :impossible {:name "Impossible" :generator mine-generator-impossible}))
 
 (defn make-game
-  ([{:keys [rows cols mines mine-generator]}]
+  ([{:keys [rows cols mines]} mine-generator]
    (make-game rows cols mines mine-generator))
   ([rows cols mine-count mine-generator]
-  (let [cells (for [r (range rows)
-                    c (range cols)]
-                {:row r :col c})
-        board (zipmap cells (repeat :hidden))]
-    {:mine-count mine-count
-     :mine-generator (or mine-generator mine-generator-standard)
-     :rows rows
-     :cols cols
-     :board board
-     :status :playing})))
+   (let [cells (for [r (range rows)
+                     c (range cols)]
+                 {:row r :col c})
+         board (zipmap cells (repeat :hidden))]
+     {:mine-count mine-count
+      :mine-generator (or mine-generator mine-generator-standard)
+      :rows rows
+      :cols cols
+      :board board
+      :status :playing})))
