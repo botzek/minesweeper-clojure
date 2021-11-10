@@ -71,19 +71,6 @@
         [:reveal cell]))
     nil))
 
-(defn- generate-mines-lose [{:keys [board mine-count] :as game} cell]
-  (let [cells (into #{} (keys board))
-        candidate-cells (disj cells cell)
-        mines (into #{cell} (take (- mine-count 1) (shuffle candidate-cells)))]
-    (assoc game :mines mines)))
-
-(defn- generate-mines [{:keys [board mine-count] :as game} cell]
-  (let [cells (into #{} (keys board))
-        free-cells (into #{cell} (adjacent-cells cell board))
-        candidate-cells (set/difference cells free-cells)
-        mines (into #{} (take mine-count (shuffle candidate-cells)))]
-    (assoc game :mines mines)))
-
 (defn reveal [{:keys [board mines status mine-generator] :as game} cell]
   {:pre [(= :hidden (get board cell))
          (= status :playing)]}
@@ -137,13 +124,29 @@
 
       game)))
 
+
+(def mine-generator-standard
+  (fn [{:keys [board mine-count] :as game} cell]
+    (let [cells (into #{} (keys board))
+          free-cells (into #{cell} (adjacent-cells cell board))
+          candidate-cells (set/difference cells free-cells)
+          mines (into #{} (take mine-count (shuffle candidate-cells)))]
+      (assoc game :mines mines))))
+
+(def mine-generator-impossible
+  (fn [{:keys [board mine-count] :as game} cell]
+    (let [cells (into #{} (keys board))
+          candidate-cells (disj cells cell)
+          mines (into #{cell} (take (- mine-count 1) (shuffle candidate-cells)))]
+      (assoc game :mines mines))))
+
 (def pre-sets
   (array-map
    :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
    :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
    :intermediate {:name "Intermediate" :rows 16 :cols 16 :mines 40}
    :expert {:name "Expert" :rows 16 :cols 30 :mines 99}
-   :impossible {:name "Impossible" :rows 16 :cols 30 :mines 1 :mine-generator generate-mines-lose}))
+   :impossible {:name "Impossible" :rows 16 :cols 30 :mines 1 :mine-generator mine-generator-impossible}))
 
 (defn make-game
   ([{:keys [rows cols mines mine-generator]}]
@@ -153,9 +156,8 @@
                     c (range cols)]
                 {:row r :col c})
         board (zipmap cells (repeat :hidden))]
-        ;mines (into #{} (take mine-count (shuffle cells)))
     {:mine-count mine-count
-     :mine-generator (or mine-generator generate-mines)
+     :mine-generator (or mine-generator mine-generator-standard)
      :rows rows
      :cols cols
      :board board
