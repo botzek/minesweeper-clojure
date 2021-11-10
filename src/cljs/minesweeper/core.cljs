@@ -202,35 +202,39 @@
      [:div
       [:hr]
       [:div.title.is-4 "Game Settings"]
-      [:label.label "Difficulty"
-      [:table.table
-       [:thead>tr
-        [:th]
-        [:th "Rows"]
-        [:th "Columns"]
-        [:th "Mines"]]
-       [:tbody
-        (for [[k {:keys [name rows cols mines]}] game/pre-sets]
-          ^{:key {:pre-set k}}
-          [:tr
-           [:td
-            [:label.label
-             [:input
-              {:type :radio
-               :name :settings
-               :value k
-               :defaultChecked (= k :trivial)
-               :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
-             name]]
-           [:td rows]
-           [:td cols]
-           [:td mines]])]]]
-      [:label.label.pt-4 "Mine Generator: "
-       [:select
-        {:on-change #(rf/dispatch [:minesweeper/set-mine-generator (.. % -target -value)])}
-        (for [[k {:keys [name]}] game/mine-generators]
-          ^{:key {:mine-generator k}}
-          [:option {:value k} name])]]]]))
+      [:div.pl-2
+       [:label.label.is-4 "Difficulty"]
+       [:div.pl-4
+        [:table.table
+         [:thead>tr
+          [:th]
+          [:th "Rows"]
+          [:th "Columns"]
+          [:th "Mines"]]
+         [:tbody
+          (for [[k {:keys [name rows cols mines]}] game/pre-sets]
+            ^{:key {:pre-set k}}
+            [:tr
+             [:td
+              [:label.label
+               [:input
+                {:type :radio
+                 :name :settings
+                 :value k
+                 :defaultChecked (= k :trivial)
+                 :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
+               name]]
+             [:td rows]
+             [:td cols]
+             [:td mines]])]]]]
+      [:div.pl-2
+       [:label.label.is-4.pt-4 "Mine Generator"]
+       [:div.select.pl-4
+        [:select
+         {:on-change #(rf/dispatch [:minesweeper/set-mine-generator (.. % -target -value)])}
+         (for [[k {:keys [name]}] game/mine-generators]
+           ^{:key {:mine-generator k}}
+           [:option {:value k} name])]]]]]))
 
 (defn home-page []
   [:div
