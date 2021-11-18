@@ -83,22 +83,6 @@
        :board
        (get cell))))
 
-(rf/reg-sub
- :minesweeper/settings-rows
- (fn [db [_]]
-   (-> db :minesweeper/settings :rows)))
-
-(rf/reg-sub
- :minesweeper/settings-cols
- (fn [db [_]]
-   (-> db :minesweeper/settings :cols)))
-
-(rf/reg-sub
- :minesweeper/settings-mines
- (fn [db [_]]
-   (-> db :minesweeper/settings :mines)))
-
-
 (defn nav-link [uri title page]
   [:a.navbar-item
    {:href   uri
