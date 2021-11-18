@@ -23,9 +23,9 @@
             :minesweeper/game (game/make-game settings mine-generator)))))
 
 (rf/reg-event-db
- :minesweeper/set-settings-pre-set
- (fn [db [_ pre-set]]
-   (assoc db :minesweeper/settings (get game/pre-sets (keyword pre-set)))))
+ :minesweeper/set-difficulty
+ (fn [db [_ difficulty]]
+   (assoc db :minesweeper/settings (get game/difficulties (keyword difficulty)))))
 
 (rf/reg-event-db
  :minesweeper/set-mine-generator
@@ -159,8 +159,8 @@
        [:th "Columns"]
        [:th "Mines"]]
       [:tbody
-       (for [[k {:keys [name rows cols mines]}] game/pre-sets]
-         ^{:key {:pre-set k}}
+       (for [[k {:keys [name rows cols mines]}] game/difficulties]
+         ^{:key {:difficulty k}}
          [:tr
           [:td
            [:label.label
@@ -169,7 +169,7 @@
               :name :settings
               :value k
               :defaultChecked (= k :trivial)
-              :on-change #(rf/dispatch [:minesweeper/set-settings-pre-set (.. % -target -value)])}]
+              :on-change #(rf/dispatch [:minesweeper/set-difficulty (.. % -target -value)])}]
             name]]
           [:td rows]
           [:td cols]
@@ -253,7 +253,7 @@
   (rdom/render [#'home-page] (.getElementById js/document "app")))
 
 (defn init! []
-  (rf/dispatch [:minesweeper/set-settings-pre-set :trivial])
+  (rf/dispatch [:minesweeper/set-difficulty :trivial])
   (rf/dispatch [:minesweeper/set-mine-generator :standard])
   (rf/dispatch [:minesweeper/new-game])
   (mount-components))

@@ -140,7 +140,7 @@
           mines (into #{cell} (take (- mine-count 1) (shuffle candidate-cells)))]
       (assoc game :mines mines))))
 
-(def pre-sets
+(def difficulties
   (array-map
    :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
    :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
