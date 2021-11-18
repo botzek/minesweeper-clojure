@@ -54,6 +54,12 @@
    (-> db :minesweeper/game)))
 
 (rf/reg-sub
+ :minesweeper/board
+ :<- [:minesweeper/game]
+ (fn [game _]
+   (:board game)))
+
+(rf/reg-sub
  :minesweeper/solvable?
  :<- [:minesweeper/game]
  (fn [game _]
@@ -62,26 +68,27 @@
 
 (rf/reg-sub
  :minesweeper/rows
- (fn [db _]
-   (-> db :minesweeper/game :rows)))
+ :<- [:minesweeper/game]
+ (fn [game _]
+   (:rows game)))
 
 (rf/reg-sub
  :minesweeper/game-status
- (fn [db _]
-   (-> db :minesweeper/game :status)))
+ :<- [:minesweeper/game]
+ (fn [game _]
+   (:status game)))
 
 (rf/reg-sub
  :minesweeper/cols
- (fn [db _]
-   (-> db :minesweeper/game :cols)))
+ :<- [:minesweeper/game]
+ (fn [game _]
+   (:cols game)))
 
 (rf/reg-sub
  :minesweeper/cell
- (fn [db [_ cell]]
-   (-> db
-       :minesweeper/game
-       :board
-       (get cell))))
+ :<- [:minesweeper/board]
+ (fn [board [_ cell]]
+   (get board cell)))
 
 (defn nav-link [uri title page]
   [:a.navbar-item
