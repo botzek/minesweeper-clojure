@@ -170,7 +170,7 @@
               :value k
               :defaultChecked (= k :trivial)
               :on-change #(rf/dispatch [:minesweeper/set-difficulty (.. % -target -value)])}]
-            name]]
+            " " name]]
           [:td rows]
           [:td cols]
           [:td mines]])]]]]
