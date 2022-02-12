@@ -1,14 +1,19 @@
-{:nrepl {:port 7002}
+{:source-paths
+ ["src/main"]
+
+ ;:nrepl {:port 7002}
+ :dev-http {8080 "public"}
+
+ :dependencies
+ [[reagent "1.1.0"]
+  [metosin/reitit "0.5.15"]
+  [ch.qos.logback/logback-classic "1.2.6"]
+  [re-frame "1.2.0"]
+  [day8.re-frame/http-fx "0.2.3"]]
+
  :builds
         {:app
                {:target     :browser
-                :output-dir "target/cljsbuild/public/js"
+                :output-dir "public/js"
                 :asset-path "/js"
-                :modules    {:app {:entries [minesweeper.app]}}
-                :devtools   {:watch-dir "resources/public"
-                             :preloads  [re-frisk.preload]}
-                :dev        {:closure-defines {"re_frame.trace.trace_enabled_QMARK_" true}}
-                :release    {}}
-         :test {:target  :node-test, :output-to "target/test/test.js"
-                :autorun true}}
- :lein  {:profile "+dev"}}
+                :modules    {:main {:entries [minesweeper.app]}}}}}
