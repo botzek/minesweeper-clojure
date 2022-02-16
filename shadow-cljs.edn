@@ -15,4 +15,5 @@
                {:target     :browser
                 :output-dir "public/js"
                 :asset-path "/js"
-                :modules    {:main {:entries [minesweeper.app]}}}}}
+                :modules    {:main {:entries [minesweeper.app]}}
+                :release {:output-dir "target/release/js"}}}}
