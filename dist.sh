@@ -1,6 +1,9 @@
+set -e 
+
 rm -rf dist
 rm -rf target/release
 
+npm install
 npx shadow-cljs release app
 
 rsync -av --exclude='js' public/* dist/
