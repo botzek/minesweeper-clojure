@@ -71,28 +71,33 @@
         [:reveal cell]))
     nil))
 
-(defn reveal [{:keys [board status mines mine-count mine-generator] :as game} cell]
+(defn reveal [{:keys [mines mine-count mine-generator status board] :as game} cell]
   {:pre [(= :hidden (get board cell))
          (= status :playing)]}
-  (letfn [(reveal-fn [{:keys [board mines status] :as game} cell]
-            (let [state (if (contains? mines cell)
-                          :exploded
-                          (adjacent-mine-count cell mines))
-                  new-game (-> game
-                               (assoc-in [:board cell] state)
-                               (update-game-status))]
-              (if (= 0 state)
-                (let [adjacent-cells (filter #(cell-adjacent? % cell)
-                                             (-> new-game :board keys))
-                      reduce-fn (fn [fn-game fn-cell]
-                                  (if (= :hidden (-> fn-game :board (get fn-cell)))
-                                    (reveal-fn fn-game fn-cell)
-                                    fn-game))]
-                  (reduce reduce-fn new-game adjacent-cells))
-                new-game)))]
-    (if (= mine-count (count mines))
-      (reveal-fn game cell)
-      (reveal-fn (mine-generator game cell) cell))))
+  (cond
+    (not= mine-count (count mines))
+    (reveal (mine-generator game cell) cell)
+
+    (contains? mines cell)
+    (-> game
+        (assoc-in [:board cell] :exploded)
+        (assoc :status :lost))
+
+    true
+    (letfn [(reveal-fn [{:keys [board mines status] :as game} cell]
+              (let [state (adjacent-mine-count cell mines)
+                    new-game (assoc-in game [:board cell] state)]
+                (if (= 0 state)
+                  (let [adjacent-cells (adjacent-cells cell (:board new-game))
+                        reduce-fn (fn [fn-game fn-cell]
+                                    (if (#{:hidden :flagged} (get-in fn-game [:board fn-cell]))
+                                      (reveal-fn fn-game fn-cell)
+                                      fn-game))]
+                    (reduce reduce-fn new-game adjacent-cells))
+                  new-game)))]
+      (-> game
+          (reveal-fn cell)
+          (update-game-status)))))
 
 (defn toggle-flag [{:keys [board status] :as game} cell]
   {:pre [(#{:hidden :flagged} (get board cell))
@@ -100,11 +105,7 @@
   (let [state (get board cell)]
     (case state
       :flagged
-      (if (some #(= 0 (get board %)) (adjacent-cells cell board))
-        (-> game
-         (assoc-in [:board cell] :hidden)
-         (reveal cell))
-        (assoc-in game [:board cell] :hidden))
+      (assoc-in game [:board cell] :hidden)
 
       :hidden
       (assoc-in game [:board cell] :flagged))))
