@@ -1,5 +1,5 @@
 {:source-paths
- ["src/main"]
+ ["src/main" "config"]
 
  :dev-http {8080 "public"}
 
