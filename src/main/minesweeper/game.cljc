@@ -2,7 +2,34 @@
   (:require
     [clojure.set :as set]))
 
-(defn- cell-adjacent? [{:keys [row col] :as cell} other]
+(declare mine-generator-default)
+
+(defn make-game
+  ([{:keys [rows cols mines]} mine-generator]
+   (make-game rows cols mines mine-generator))
+  ([rows cols mine-count mine-generator]
+   (let [cells (for [r (range rows)
+                     c (range cols)]
+                 {:row r :col c})
+         board (zipmap cells (repeat :hidden))]
+     {:mine-count mine-count
+      :mine-generator (or mine-generator mine-generator-default)
+      :rows rows
+      :cols cols
+      :board board
+      :status :playing})))
+
+;; Pre-Set Difficulties
+(def difficulties
+  (array-map
+   :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
+   :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
+   :intermediate {:name "Intermediate" :rows 16 :cols 16 :mines 40}
+   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}))
+
+(defn- cell-adjacent?
+  "Returns true when the two cells are adjacent to eachother."
+  [{:keys [row col] :as cell} other]
   (let [min-row (- row 1)
         max-row (+ row 1)
         min-col (- col 1)
@@ -12,7 +39,9 @@
      (<= min-row (:row other) max-row)
      (<= min-col (:col other) max-col))))
 
-(defn- adjacent-cells [{:keys [row col] :as cell} board]
+(defn- adjacent-cells
+  "Returns adjacent cells in the board."
+  [{:keys [row col] :as cell} board]
   (for [rd (range -1 2)
         cd (range -1 2)
         :let [adj {:row (+ rd row) :col (+ cd col)}]
@@ -20,12 +49,16 @@
                    (contains? board adj))]
     adj))
 
-(defn- adjacent-mine-count [{:keys [col, row] :as cell} mine-cells]
+(defn- adjacent-mine-count
+  "Returns how many mines are adjacent to the cell."
+  [{:keys [col, row] :as cell} mine-cells]
   (->> mine-cells
        (filter #(cell-adjacent? cell %1))
        count))
 
-(defn- update-game-status [{:keys [board mine-count] :as game}]
+(defn- update-game-status
+  "Updates the game status based upon the board state."
+  [{:keys [board mine-count] :as game}]
   (cond
     ; lost
     (some #(= :exploded %) (vals board))
@@ -40,38 +73,9 @@
     :else
     game))
 
-
-(defn- mine-count-satisfied? [cell board]
-  {:pre [(number? (get board cell))]}
-  (let [mines (get board cell)
-        adjacent-flags (->> board
-                            (adjacent-cells cell)
-                            (filter #(= :flagged (get board %)))
-                            (count))]
-    (<= mines adjacent-flags)))
-
-(defn- all-adjacent-need-flag? [cell board]
-  (let [mines (get board cell)
-        potential-flags (->> board
-                             (adjacent-cells cell)
-                             (filter (fn [cell] (#{:flagged :hidden} (get board cell))))
-                             (count))]
-    (= mines potential-flags)))
-
-(defn- next-step-for-cell [cell board]
-  (if (= :hidden (get board cell))
-    (let [adjacent-cells (adjacent-cells cell board)]
-      (cond
-        (some #(all-adjacent-need-flag? % board)
-              (filter #(number? (get board %)) adjacent-cells))
-        [:flag cell]
-
-        (some #(mine-count-satisfied? % board)
-              (filter #(number? (get board %)) adjacent-cells))
-        [:reveal cell]))
-    nil))
-
-(defn reveal [{:keys [mines mine-count mine-generator status board] :as game} cell]
+(defn reveal
+  "Reveals a cell"
+  [{:keys [mines mine-count mine-generator status board] :as game} cell]
   {:pre [(= :hidden (get board cell))
          (= status :playing)]}
   (cond
@@ -81,7 +85,7 @@
     (contains? mines cell)
     (-> game
         (assoc-in [:board cell] :exploded)
-        (assoc :status :lost))
+        (update-game-status))
 
     true
     (letfn [(reveal-fn [{:keys [board mines status] :as game} cell]
@@ -99,7 +103,9 @@
           (reveal-fn cell)
           (update-game-status)))))
 
-(defn toggle-flag [{:keys [board status] :as game} cell]
+(defn toggle-flag
+  "Toggles the flag status on the cell."
+  [{:keys [board status] :as game} cell]
   {:pre [(#{:hidden :flagged} (get board cell))
          (= status :playing)]}
   (let [state (get board cell)]
@@ -110,12 +116,53 @@
       :hidden
       (assoc-in game [:board cell] :flagged))))
 
-(defn next-step [{:keys [status board] :as game}]
+;; Solver
+(defn- mine-count-satisfied?
+  "Returns true when a cell's mine count is satisfied by flagged cells."
+  [cell board]
+  {:pre [(number? (get board cell))]}
+  (let [mines (get board cell)
+        adjacent-flags (->> board
+                            (adjacent-cells cell)
+                            (filter #(= :flagged (get board %)))
+                            (count))]
+    (<= mines adjacent-flags)))
+
+(defn- all-adjacent-need-flag?
+  "Returns true when the cell's mine count is satisfied by all adjacent cells being flagged."
+  [cell board]
+  (let [mines (get board cell)
+        potential-flags (->> board
+                             (adjacent-cells cell)
+                             (filter (fn [cell] (#{:flagged :hidden} (get board cell))))
+                             (count))]
+    (= mines potential-flags)))
+
+(defn- next-step-for-cell
+  "Figures out the next step to take for a cell.  Returns nil if there is no next step."
+  [cell board]
+  (if (= :hidden (get board cell))
+    (let [adjacent-cells (adjacent-cells cell board)]
+      (cond
+        (some #(all-adjacent-need-flag? % board)
+              (filter #(number? (get board %)) adjacent-cells))
+        [:flag cell]
+
+        (some #(mine-count-satisfied? % board)
+              (filter #(number? (get board %)) adjacent-cells))
+        [:reveal cell]))
+    nil))
+
+(defn next-step
+  "Returns the next step to make for the game."
+  [{:keys [status board] :as game}]
   {:pre [(= :playing status)]}
   (first (filter some? (map #(next-step-for-cell % board)
                             (keys board)))))
 
-(defn take-step [game]
+(defn take-step
+  "Takes the next step for the game."
+  [game]
   (let [step (next-step game)]
     (case (first step)
       :flag
@@ -126,44 +173,32 @@
 
       game)))
 
-(def mine-generator-standard
-  (fn [{:keys [board mine-count] :as game} cell]
-    (let [cells (into #{} (keys board))
-          free-cells (into #{cell} (adjacent-cells cell board))
-          candidate-cells (set/difference cells free-cells)
-          mines (into #{} (take mine-count (shuffle candidate-cells)))]
-      (assoc game :mines mines))))
+;; Mine Generators
+(defn mine-generator-standard
+  "'Standard' minefield generator.
 
-(def mine-generator-impossible
-  (fn [{:keys [board mine-count] :as game} cell]
-    (let [cells (into #{} (keys board))
-          candidate-cells (disj cells cell)
-          mines (into #{cell} (take (- mine-count 1) (shuffle candidate-cells)))]
-      (assoc game :mines mines))))
+  It ensures the first cell they click on, and all cells adjacent to it, aren't mines.
+  That aside, it's completely random."
+  [{:keys [board mine-count] :as game} cell]
+  (let [cells (into #{} (keys board))
+        free-cells (into #{cell} (adjacent-cells cell board))
+        candidate-cells (set/difference cells free-cells)
+        mines (into #{} (take mine-count (shuffle candidate-cells)))]
+    (assoc game :mines mines)))
 
-(def difficulties
-  (array-map
-   :trivial {:name "Trivial" :rows 9 :cols 9 :mines 5}
-   :beginner {:name "Beginner" :rows 9 :cols 9 :mines 10}
-   :intermediate {:name "Intermediate" :rows 16 :cols 16 :mines 40}
-   :expert {:name "Expert" :rows 16 :cols 30 :mines 99}))
+(defn mine-generator-impossible
+  "Generates a minefield that is impossible to win.
+
+  The first cell they click on is always a mine."
+  [{:keys [board mine-count] :as game} cell]
+  (let [cells (into #{} (keys board))
+        candidate-cells (disj cells cell)
+        mines (into #{cell} (take (- mine-count 1) (shuffle candidate-cells)))]
+    (assoc game :mines mines)))
 
 (def mine-generators
   (array-map
    :standard {:name "Standard" :generator mine-generator-standard}
    :impossible {:name "Impossible" :generator mine-generator-impossible}))
 
-(defn make-game
-  ([{:keys [rows cols mines]} mine-generator]
-   (make-game rows cols mines mine-generator))
-  ([rows cols mine-count mine-generator]
-   (let [cells (for [r (range rows)
-                     c (range cols)]
-                 {:row r :col c})
-         board (zipmap cells (repeat :hidden))]
-     {:mine-count mine-count
-      :mine-generator (or mine-generator mine-generator-standard)
-      :rows rows
-      :cols cols
-      :board board
-      :status :playing})))
+(def mine-generator-default mine-generator-standard)
