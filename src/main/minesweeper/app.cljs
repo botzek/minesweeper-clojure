@@ -1,8 +1,7 @@
 (ns minesweeper.app
   (:require [minesweeper.core :as core]
             [cljs.spec.alpha :as s]
-            [expound.alpha :as expound]
-            #_[devtools.core :as devtools]))
+            [expound.alpha :as expound]))
 
 (if goog.DEBUG
   (do
@@ -13,9 +12,7 @@
 
     (set! s/*explain-out* expound/printer)
 
-    (enable-console-print!)
-
-    #_(devtools/install!))
+    (enable-console-print!))
   (do
     ;;ignore println statements in prod
     (set! *print-fn* (fn [& _]))))

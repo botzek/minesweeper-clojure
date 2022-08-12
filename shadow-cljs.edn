@@ -4,7 +4,8 @@
  :dev-http {8080 "public"}
 
  :dependencies
- [[reagent "1.1.0"]
+ [[binaryage/devtools "1.0.6"]
+  [reagent "1.1.0"]
   [metosin/reitit "0.5.15"]
   [ch.qos.logback/logback-classic "1.2.6"]
   [re-frame "1.2.0"]
