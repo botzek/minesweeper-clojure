@@ -1,16 +1,10 @@
 (ns minesweeper.core
   (:require
-    [day8.re-frame.http-fx]
     [reagent.dom :as rdom]
     [reagent.core :as r]
     [re-frame.core :as rf]
-    [goog.events :as events]
-    [goog.history.EventType :as HistoryEventType]
     [minesweeper.game :as game]
-    [reitit.core :as reitit]
-    [reitit.frontend.easy :as rfe]
-    [clojure.string :as string])
-  (:import goog.History))
+    [clojure.string :as string]))
 
 
 (rf/reg-event-db
